@@ -35,7 +35,7 @@ drop database if exists 库名；
 ### 表的管理    ！重要
 创建、修改、删除
 
-1.
+1. 创建
 create table 表名(
   列名 列的类型（长度） 约束，
   列名 列的类型（长度） 约束，
@@ -51,41 +51,46 @@ create table book(
   authorId INT,
   publishDate DATETIME
 )
-2.
-修改列名
-alter table book change column pubilishDate pubDate DATETIME;
 
-修改列的类型或约束
-alter table book modify column pubDate TIMESTAMP;
+2. 修改
+- 修改列名
+alter table 表名 change column 旧列名 新列名 新类型 （新约束）;
 
-添加新列
-alter table book ADD column annual DOUBLE;
+- 修改列的类型或约束
+alter table 表名 modify column 列名 新类型 （新约束）;
 
-删除列
-alter table book DROP column annual
+- 添加新列
+alter table 表名 ADD column 列名 类型 （FIRST / AFTER 列名）;
 
-修改表名
-alter table book RENAME TO books
+- 删除列
+alter table 表名 DROP column 列名
 
-3.
+- 修改表名
+alter table 表名 RENAME （TO） 新表名
+
+3. 删除
 drop table 表名；
 drop table if exists 表名；
 
 show tables；
 
-4.表的复制（可以跨库，from 库名.表名）
+4. 表的复制（可以跨库，from 库名.表名）
+
 - 只复制表结构
-create table 新库名 like 旧库名；
+create table 表名 like 旧表名；
+
 - 复制表结构+数据
-create table 新库名
-select * from 旧库名；
+create table 表名
+select * from 旧表名；
+
 - 只复制部分数据
-create table 新库名
-select 列名 from 旧库名
+create table 表名
+select 列名 from 旧表名
 where 条件； 
+
 - 只复制某些字段
-create table 新库名
-select 列名 from 旧库名
+create table 新表名
+select 列名 from 旧表名
 where 0；
 
 ### 常见数据类型
@@ -113,9 +118,91 @@ where 0；
   - year
 
 
+### 常见约束
+一种限制，用于限制表中的数据，为了保障表中数据的一致性
+
+1. NOT NULL 非空约束， 用于保证该字段的值不为空，eg：姓名、学号等
+2. DEFAULT 默认， 保证该字段有默认值，eg：性别默认为男
+3. PRIMARY KEY 主键， 保证该字段的值具有唯一性，并且非空，eg：学号、员工编号
+4. UNIQUE 唯一， 保证该字段的值唯一，可以为空， eg：座位号
+5. CHECK 检查约束， mysql不支持（不报错无效果）
+
 --------------------------
 
-## 数据操作语言
+## 数据操作语言 DML
+插入，修改，删除
+
+1. 插入
+方式一： 
+insert into 表名（列名，...） values （值1， ...）；
+1） 插入的值类型要与列的类型一致/兼容
+2） 不为null的列必须插入值。可为null的列插入值的方法：
+  - 插入列名的时候值用NULL
+  - 不写列名，不写值，自动填充null
+3） 列的顺序可以调换，但要与值一一对应
+4） 可以省略列名，默认所有列，且有顺序
+
+方式二：
+insert into 表名
+set 列名=值，列名=值，...
+
+对比：
+1. 方式一支持多行一起插入，每行用逗号隔开，方式二不行
+2. 方式一支持将子查询作为值插入到表中，方式二不支持
+
+
+
+2. 修改
+- 修改单表记录
+update 表名
+set 列=新值， 列=新值， ...
+where 筛选条件； （不加where整表修改）
+
+- 修改多表记录
+sql92语法：
+update 表1 别名，表2 别名
+set 列=值，...
+where 连接条件
+and 筛选条件；
+
+sql99语法：
+update 表1 别名
+连接类型 join 表2 别名
+on 连接条件
+set 列=值，...
+where 筛选条件
+
+3. 删除
+方式一： 
+delete from 表名 where 筛选条件 （不加筛选则全删）
+多表时：
+  - sql92
+  delete 表1的别名，表2的别名
+  from 表1 别名， 表2 别名
+  where 连接条件
+  and 筛选条件
+
+  - sql99
+  delete 表1的别名，表2的别名
+  from 表1 别名
+  连接类型 join 表2 别名
+  on 连接条件
+  where 筛选条件
+
+
+方式二：
+truncate table 表名； 删除整张表，不能加where
+
+区别：
+1. delete可以加where，truncate不行
+2. truncate效率更高
+3. 假如要删除的表中有自增长列，用delete删除后再插入数据，自增长列的值从断点开始，用truncate则增1开始
+4. truncate删除没有返回值，delete有，希望返回‘x行受影响’则用delete
+5. truncate删除不能回滚，delete可以
+
+--------------------------
+
+## 查询
 ### 函数
 - 单行函数
 一行产生一个值
@@ -259,9 +346,56 @@ order by 排序列表）
   - 列子查询： 般搭配多行操作符使用 in/not in、any/some、all
   - 行子查询： 
 
-#### select 后面
-select 
+#### from 后面
+将子查询结果充当一张表，可连接另一张表，要求必须起别名
 
-select department_name
+#### exists 后面
+SELECT EXISTS （SELECT 列名 from 表名），括号里为布尔类型，true则查询结果为1，false则为0
+
+
+### 分页查询
+当要显示的数据一页显示不全，需要分页提交sql请求
+
+select 查询列表
+from 表
+（join type join表2
+on 连接条件
+where 筛选条件
+group by 分组字段
+having 分组后筛选
+order by 排序字段）
+limit offset， size；
+
+offset要显示条目的起始索引（从0开始,默认为0），size要显示的条目个数
+limit放在最后，执行顺序也是最后
+
+公式：
+要显示的页数page，每页的条目数size
+select 查询列表
+from 表
+limit （page-1）*size， size；
+
+
+### 联合查询
+将多条查询语句的结果合并成一个结果
+
+- 语法
+查询语句1
+union
+查询语句2
+...
+可以多个union
+
+- 应用场景
+查询来自多个表，且各表之间没有直接的连接关系，但查询的信息一致
+
+- 特点
+1. 多条查询的列数必须一致
+2. 多条查询的每一列的类型和顺序一致 （虽然不一致不会报错）
+3. union自动去重，如果不想去重，可以用union all
+
+
+
+
 
 
